@@ -1,4 +1,22 @@
 {
+  "name": "youtube-mcp-server",
+  "version": "1.0.0",
+  "description": "YouTube Model Context Protocol Server",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZubeidHendricks/youtube-mcp-server.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ZubeidHendricks/youtube-mcp-server/issues"
+  },
+  "homepage": "https://github.com/ZubeidHendricks/youtube-mcp-server#readme",
   "dependencies": {
     "@modelcontextprotocol/typescript-sdk": "^0.1.0"
   }
