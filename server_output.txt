@@ -1,0 +1,7 @@
+
+> zubeid-youtube-mcp-server@1.0.0 start
+> ts-node ./src/index.ts
+
+YouTube MCP Server v1.0.0 started successfully
+Server will validate YouTube API key when tools are called
+YouTube MCP Server started successfully

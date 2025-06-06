@@ -1,3 +1,4 @@
+import { VideoParams, SearchParams, TranscriptParams, ChannelParams, ChannelVideosParams, PlaylistParams, PlaylistItemsParams } from './types';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { VideoService } from './services/video';
@@ -41,7 +42,7 @@ export async function startMcpServer() {
         },
     }, async (params) => {
         try {
-            const result = await videoService.getVideo(params);
+            const result = await videoService.getVideo(params as VideoParams);
             return {
                 content: [{
                     type: 'text',
@@ -77,7 +78,7 @@ export async function startMcpServer() {
         },
     }, async (params) => {
         try {
-            const result = await videoService.searchVideos(params);
+            const result = await videoService.searchVideos(params as SearchParams);
             return {
                 content: [{
                     type: 'text',
@@ -114,7 +115,7 @@ export async function startMcpServer() {
         },
     }, async (params) => {
         try {
-            const result = await transcriptService.getTranscript(params);
+            const result = await transcriptService.getTranscript(params as TranscriptParams);
             return {
                 content: [{
                     type: 'text',
@@ -147,7 +148,7 @@ export async function startMcpServer() {
         },
     }, async (params) => {
         try {
-            const result = await channelService.getChannel(params);
+            const result = await channelService.getChannel(params as ChannelParams);
             return {
                 content: [{
                     type: 'text',
@@ -183,7 +184,7 @@ export async function startMcpServer() {
         },
     }, async (params) => {
         try {
-            const result = await channelService.listVideos(params);
+            const result = await channelService.listVideos(params as ChannelVideosParams);
             return {
                 content: [{
                     type: 'text',
@@ -216,7 +217,7 @@ export async function startMcpServer() {
         },
     }, async (params) => {
         try {
-            const result = await playlistService.getPlaylist(params);
+            const result = await playlistService.getPlaylist(params as PlaylistParams);
             return {
                 content: [{
                     type: 'text',
@@ -252,7 +253,7 @@ export async function startMcpServer() {
         },
     }, async (params) => {
         try {
-            const result = await playlistService.getPlaylistItems(params);
+            const result = await playlistService.getPlaylistItems(params as PlaylistItemsParams);
             return {
                 content: [{
                     type: 'text',

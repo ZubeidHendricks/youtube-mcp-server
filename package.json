@@ -18,7 +18,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.1.1",
+    "@modelcontextprotocol/sdk": "^1.12.1",
     "googleapis": "^129.0.0",
     "ytdl-core": "^4.11.5",
     "youtube-transcript": "^1.0.6"
