@@ -257,9 +257,9 @@ export async function startMcpServer() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     
-    // Log the server info
-    console.log(`YouTube MCP Server v1.0.0 started successfully`);
-    console.log(`Server will validate YouTube API key when tools are called`);
+    // Log the server info to stderr (stdout is reserved for MCP protocol)
+    console.error(`YouTube MCP Server v1.0.0 started successfully`);
+    console.error(`Server will validate YouTube API key when tools are called`);
     
     return server;
 }

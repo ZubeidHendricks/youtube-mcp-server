@@ -1,6 +1,6 @@
 {
   "name": "zubeid-youtube-mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "YouTube MCP Server Implementation",
   "main": "dist/index.js",
   "bin": {
