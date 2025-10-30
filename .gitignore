@@ -36,6 +36,9 @@ Thumbs.db
 /zoobayd-platform-fresh/
 /zoobayd-platform-new/
 
+# MCP configuration (contains API keys)
+.mcp.json
+
 # Keep specific JSON files
 !package.json
 !tsconfig.json
