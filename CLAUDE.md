@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-YouTube MCP Server is a Model Context Protocol (MCP) server implementation that enables AI language models to interact with YouTube content. It provides tools for accessing video information, transcripts, channel data, and playlist management through standardized MCP interfaces.
+YouTube MCP Server is a Model Context Protocol (MCP) server implementation that enables AI language models to interact with YouTube content. It provides tools for accessing video information, transcripts, channel data, playlist management, and comment retrieval through standardized MCP interfaces.
 
 ## Development Commands
 
@@ -15,104 +15,138 @@ npm install
 # Build TypeScript to JavaScript
 npm run build
 
-# Start the server
+# Start the server (requires YOUTUBE_API_KEY environment variable)
 npm start
 
 # Development mode with auto-rebuild and hot reload
 npm run dev
-
-# Publish to npm (runs build first)
-npm run prepublishOnly
 ```
 
 ## Architecture
 
 ### Core Structure
 
-The project uses a **service-based architecture** with the following layers:
+The project uses a **service-based architecture** with clear separation of concerns:
 
-1. **Entry Point** (`src/index.ts`): Validates required environment variables and starts the MCP server
-2. **Server** (`src/server.ts`): Sets up the MCP server, defines available tools, and routes tool calls to appropriate services
-3. **Services** (`src/services/`): Core business logic for interacting with YouTube APIs
-   - `VideoService`: Handles video operations (get video details, search videos)
-   - `TranscriptService`: Retrieves and manages video transcripts
-   - `PlaylistService`: Manages playlist operations
-   - `ChannelService`: Handles channel-related operations
-4. **Types** (`src/types.ts`): TypeScript interfaces for function parameters and data structures
-5. **Functions** (`src/functions/`): Additional functionality (currently excluded from compilation but available for future extensions)
+1. **Entry Point** (`src/cli.ts`): Validates required environment variables and starts the MCP server
+2. **Server** (`src/server.ts`): Configures the MCP server, registers tools via schema handlers, and routes tool calls to services
+3. **Services** (`src/services/`): Core business logic that wraps YouTube API interactions
+   - `VideoService` (`src/services/video.ts`): Video details and search
+   - `TranscriptService` (`src/services/transcript.ts`): Transcript retrieval
+   - `PlaylistService` (`src/services/playlist.ts`): Playlist and playlist item operations
+   - `ChannelService` (`src/services/channel.ts`): Channel details and video listing
+   - `CommentService` (`src/services/comment.ts`): Video comments and comment replies
+4. **Types** (`src/types.ts`): Shared TypeScript interfaces for service parameters
+5. **Functions** (`src/functions/`): Extended functionality (excluded from compilation, available for future features)
 
-### MCP Tool Registration
+### MCP Tool Architecture
 
-Tools are registered in `src/server.ts` through the `ListToolsRequestSchema` handler (lines 39-165). Each tool has:
-- A name following the pattern `{service}_{operation}` (e.g., `videos_getVideo`)
-- A description for the AI model
-- An input schema defining expected parameters
+Tools are registered through two schema handlers in `src/server.ts`:
 
-Tool execution is handled in `CallToolRequestSchema` handler (lines 167-254) with a switch statement routing to the appropriate service method.
+- **ListToolsRequestSchema**: Returns the list of available tools. Each tool defines:
+  - `name`: Follows pattern `{service}_{operation}` (e.g., `videos_getVideo`)
+  - `description`: User-facing description for the AI model
+  - `inputSchema`: JSON Schema defining required and optional parameters
+
+- **CallToolRequestSchema**: Routes incoming tool calls by matching tool names to service methods via a switch statement. Tool arguments are passed directly to service methods, which return JSON-stringified responses.
 
 ### API Integration
 
-Services use the **Google APIs Node.js client library** (`googleapis` package) with lazy initialization:
-- The YouTube API client is initialized only when needed (not in constructor)
-- API key is read from `YOUTUBE_API_KEY` environment variable at initialization time
-- Each service maintains its own `youtube` client instance
+All services use the **Google APIs Node.js client** (`googleapis` package):
+
+- **Lazy Initialization**: YouTube API client is created only when a service method is first called (not in constructor)
+- **Environment Configuration**: API key is loaded from `YOUTUBE_API_KEY` at initialization time
+- **Error Handling**: Services catch API errors and return human-readable error messages to the MCP client
 
 ### Module System
 
-The project uses **ES modules** (ESNext) as configured in:
-- `package.json`: `"type": "module"`
+The project uses **ES modules** (ESNext):
+
+- `package.json`: `"type": "module"` enables ES module support
 - `tsconfig.json`: `"module": "ESNext"`, `"moduleResolution": "bundler"`
-- All imports use `.js` extensions (e.g., `import { VideoService } from './services/video.js'`)
-
-## Key Files and Responsibilities
-
-| File | Purpose |
-|------|---------|
-| `src/index.ts` | Entry point, validates YOUTUBE_API_KEY |
-| `src/server.ts` | MCP server setup and tool routing |
-| `src/services/video.ts` | Video lookup and search functionality |
-| `src/services/transcript.ts` | Video transcript retrieval |
-| `src/services/playlist.ts` | Playlist operations |
-| `src/services/channel.ts` | Channel information and video listing |
-| `src/types.ts` | TypeScript type definitions for all parameters |
+- All relative imports use `.js` extensions (e.g., `import { VideoService } from './services/video.js'`)
+- This setup maintains compatibility with MCP client integrations like LibreChat
 
 ## Configuration
 
-**Required Environment Variable:**
-- `YOUTUBE_API_KEY`: Your YouTube Data API v3 key (must be set before starting the server)
+### Environment Variables
 
-**Optional Environment Variable:**
-- `YOUTUBE_TRANSCRIPT_LANG`: Default language for transcripts (defaults to 'en')
+**Required:**
+- `YOUTUBE_API_KEY`: YouTube Data API v3 key from Google Cloud Console
+
+**Optional:**
+- `YOUTUBE_TRANSCRIPT_LANG`: Default language code for transcripts (defaults to 'en')
+
+### MCP Client Configuration
+
+The server can be configured in MCP client applications (e.g., Claude Desktop, LibreChat) using the `.mcp.json` configuration file. See `.mcp.json.example` for a template:
+
+```json
+{
+  "servers": {
+    "youtube-mcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["dist/cli.js"],
+      "env": {
+        "YOUTUBE_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
 
 ## Available Tools
 
-The MCP server exposes these tools to clients:
+The MCP server exposes the following tools:
 
-- `videos_getVideo`: Get detailed video information
-- `videos_searchVideos`: Search for videos
-- `transcripts_getTranscript`: Retrieve video transcript
-- `channels_getChannel`: Get channel information
-- `channels_listVideos`: List videos from a channel
-- `playlists_getPlaylist`: Get playlist details
-- `playlists_getPlaylistItems`: List items in a playlist
+| Tool | Purpose |
+|------|---------|
+| `videos_getVideo` | Get detailed video information (title, description, duration, stats) |
+| `videos_searchVideos` | Search for videos on YouTube by query |
+| `transcripts_getTranscript` | Retrieve video transcript with optional language selection |
+| `channels_getChannel` | Get channel details and statistics |
+| `channels_listVideos` | List all videos from a channel |
+| `playlists_getPlaylist` | Get playlist details |
+| `playlists_getPlaylistItems` | List all items in a playlist |
+| `comments_getVideoComments` | Fetch top-level comments on a video (default 20, with optional reply snippets) |
+| `comments_getCommentReplies` | Fetch replies to a specific comment thread |
 
 ## Build and Distribution
 
-The project is published as an npm package (`zubeid-youtube-mcp-server`) and can be installed globally or used via npx. The build process:
-1. TypeScript compiles to JavaScript in `dist/` directory
-2. Binary entry point is set via `bin` field in package.json
-3. The `main` field points to `dist/index.js`
+**Building:**
+```bash
+npm run build
+```
+TypeScript compiles to JavaScript in the `dist/` directory. The binary entry point `bin.zubeid-youtube-mcp-server` resolves to `dist/cli.js`.
 
-## Testing and Validation
+**Publishing:**
+```bash
+npm run prepublishOnly
+```
+Builds the project and publishes to npm as `zubeid-youtube-mcp-server`.
 
-The project was recently migrated to ES modules to fix compatibility issues with LibreChat and improve module resolution. When making changes:
-- Ensure all imports use `.js` extensions for relative imports
-- Verify TypeScript compiles without errors: `npm run build`
-- Test the server can start: `npm start` (requires valid YOUTUBE_API_KEY)
+**Deployment:**
+- **Global Installation**: `npm install -g zubeid-youtube-mcp-server`
+- **Via NPX**: `npx -y zubeid-youtube-mcp-server`
+- **Via Smithery**: `npx -y @smithery/cli install @ZubeidHendricks/youtube --client claude`
 
-## Important Notes
+## Code Style and Patterns
 
-- Lazy initialization of YouTube client prevents API key validation errors until tools are actually called
-- The services handle errors gracefully and return error messages to the MCP client
-- Response content is JSON-stringified for transmission to the client
-- No tests are currently configured in the project
+**Key Considerations When Making Changes:**
+
+1. **ES Module Imports**: All relative imports require `.js` extensions. This is non-negotiable for module resolution.
+2. **Service Methods**: Service methods accept parameters as plain objects matching the type interfaces in `src/types.ts`. Always ensure new parameters are properly typed.
+3. **Tool Registration**: When adding new tools, register them in both the `ListToolsRequestSchema` handler (for discovery) and the `CallToolRequestSchema` handler (for execution).
+4. **Error Responses**: Services return error information as JSON-stringified strings. The MCP transport layer handles serialization.
+5. **No Strict Type Checking**: `tsconfig.json` has `strict: false` and `noImplicitAny: false`. While not required, consider the maintainability of new code.
+
+## Validation and Testing
+
+When making changes:
+
+1. Build the project: `npm run build`
+2. Start the server in development: `npm run dev` (or `npm start` with valid API key)
+3. The server will validate the API key on startup via `src/cli.ts`
+
+There are currently no automated tests configured. Manual validation involves setting `YOUTUBE_API_KEY` and verifying the server starts without errors.
