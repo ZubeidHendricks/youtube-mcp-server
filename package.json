@@ -1,6 +1,6 @@
 {
   "name": "zubeid-youtube-mcp-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "YouTube MCP Server Implementation",
   "type": "module",
   "main": "dist/index.js",
@@ -16,6 +16,7 @@
     "start": "node ./dist/index.js",
     "build": "tsc",
     "dev": "nodemon --exec \"npm run build && npm start\" --ext ts",
+    "test:comments": "node --loader ts-node/esm --no-warnings tests/comments.test.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {

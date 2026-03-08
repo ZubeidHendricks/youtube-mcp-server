@@ -208,15 +208,53 @@ const playlist = await youtube.playlists.getPlaylist({
 # Install dependencies
 npm install
 
-# Run tests
-npm test
-
-# Build
+# Build TypeScript to JavaScript
 npm run build
 
-# Lint
-npm run lint
+# Start the server (requires YOUTUBE_API_KEY environment variable)
+npm start
+
+# Development mode with auto-rebuild
+npm run dev
 ```
+
+## Testing
+
+### Test Comments Script
+
+The repository includes a test script (`tests/comments.test.ts`) to validate comment retrieval functionality:
+
+```bash
+# Set your API key first
+export YOUTUBE_API_KEY=your_api_key_here
+
+# Run the test with a YouTube URL
+npm run test:comments "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# Or use a direct video ID
+npm run test:comments "VIDEO_ID"
+```
+
+**Usage Examples:**
+
+```bash
+# Full YouTube URL
+npm run test:comments "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+# Short URL
+npm run test:comments "https://youtu.be/dQw4w9WgXcQ"
+
+# Direct video ID
+npm run test:comments "dQw4w9WgXcQ"
+```
+
+The script will:
+- Extract the video ID from the URL
+- Fetch 10 comments from the specified video
+- Display formatted comments with parent ID and comment text
+- Show total comment count statistics
+- Display the optimized MCP server response
+- Compare response size: original vs optimized (~96% reduction)
 
 ## Contributing
 See CONTRIBUTING.md for information about contributing to this repository.

@@ -8,6 +8,7 @@ import { VideoService } from './services/video.js';
 import { TranscriptService } from './services/transcript.js';
 import { PlaylistService } from './services/playlist.js';
 import { ChannelService } from './services/channel.js';
+import { CommentService } from './services/comment.js';
 import {
     VideoParams,
     SearchParams,
@@ -16,6 +17,7 @@ import {
     ChannelVideosParams,
     PlaylistParams,
     PlaylistItemsParams,
+    VideoCommentsParams,
 } from './types.js';
 
 export async function startMcpServer() {
@@ -35,6 +37,7 @@ export async function startMcpServer() {
     const transcriptService = new TranscriptService();
     const playlistService = new PlaylistService();
     const channelService = new ChannelService();
+    const commentService = new CommentService();
 
     server.setRequestHandler(ListToolsRequestSchema, async () => {
         return {
@@ -160,6 +163,52 @@ export async function startMcpServer() {
                         required: ['playlistId'],
                     },
                 },
+                {
+                    name: 'comments_getVideoComments',
+                    description: 'Fetch video comments',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            videoId: {
+                                type: 'string',
+                                description: 'Video ID',
+                            },
+                            maxResults: {
+                                type: 'number',
+                                description: 'Max comments (default: 20)',
+                            },
+                            textFormat: {
+                                type: 'string',
+                                enum: ['plainText', 'html'],
+                                description: 'Text format',
+                            },
+                        },
+                        required: ['videoId'],
+                    },
+                },
+                {
+                    name: 'comments_getCommentReplies',
+                    description: 'Fetch comment replies',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            parentId: {
+                                type: 'string',
+                                description: 'Comment thread ID',
+                            },
+                            maxResults: {
+                                type: 'number',
+                                description: 'Max replies (default: 20)',
+                            },
+                            textFormat: {
+                                type: 'string',
+                                enum: ['plainText', 'html'],
+                                description: 'Text format',
+                            },
+                        },
+                        required: ['parentId'],
+                    },
+                },
             ],
         };
     });
@@ -238,7 +287,27 @@ export async function startMcpServer() {
                         }]
                     };
                 }
-                
+
+                case 'comments_getVideoComments': {
+                    const result = await commentService.getVideoComments(args as unknown as VideoCommentsParams);
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: JSON.stringify(result, null, 2)
+                        }]
+                    };
+                }
+
+                case 'comments_getCommentReplies': {
+                    const result = await commentService.getCommentReplies(args as unknown as any);
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: JSON.stringify(result, null, 2)
+                        }]
+                    };
+                }
+
                 default:
                     throw new Error(`Unknown tool: ${name}`);
             }
