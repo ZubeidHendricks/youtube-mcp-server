@@ -20,15 +20,16 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.1.1",
+    "dotenv": "^17.3.1",
     "googleapis": "^129.0.0",
-    "ytdl-core": "^4.11.5",
-    "youtube-transcript": "^1.0.6"
+    "youtube-transcript": "^1.0.6",
+    "ytdl-core": "^4.11.5"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",
-    "typescript": "^5.0.0",
+    "nodemon": "^3.0.0",
     "ts-node": "^10.9.1",
-    "nodemon": "^3.0.0"
+    "typescript": "^5.0.0"
   },
   "keywords": [
     "youtube",

@@ -3,31 +3,87 @@
 
 A Model Context Protocol (MCP) server implementation for YouTube, enabling AI language models to interact with YouTube content through a standardized interface.
 
-## Features
+## Available Tools
 
-### Video Information
-* Get video details (title, description, duration, etc.)
-* List channel videos
-* Get video statistics (views, likes, comments)
-* Search videos across YouTube
+The server currently exposes 10 MCP tools.
 
-### Transcript Management
-* Retrieve video transcripts
-* Support for multiple languages
-* Get timestamped captions
-* Search within transcripts
+| Tool | Description | Required Parameters | Optional Parameters |
+|------|-------------|---------------------|---------------------|
+| `videos_getVideo` | Get detailed information about a YouTube video | `videoId` | `parts` |
+| `videos_searchVideos` | Search for videos on YouTube | `query` | `maxResults`, `order`, `publishedAfter`, `publishedBefore`, `channelId`, `uniqueChannels`, `channelMinSubscribers`, `channelMaxSubscribers`, `channelLastUploadAfter`, `channelLastUploadBefore`, `creatorOnly`, `sortBy` |
+| `transcripts_getTranscript` | Get the transcript of a YouTube video | `videoId` | `language` |
+| `channels_getChannel` | Get information about a YouTube channel | `channelId` | None |
+| `channels_getChannels` | Get information about multiple YouTube channels | `channelIds` | `parts`, `includeLatestUpload` |
+| `channels_searchChannels` | Search for YouTube channels by handle, name, or query | `query` | `maxResults`, `order`, `channelType`, `minSubscribers`, `maxSubscribers`, `lastUploadAfter`, `lastUploadBefore`, `creatorOnly`, `sortBy` |
+| `channels_findCreators` | Find creator channels from video mentions with channel-size and activity filters | `query` | `maxResults`, `order`, `videoPublishedAfter`, `videoPublishedBefore`, `channelMinSubscribers`, `channelMaxSubscribers`, `channelLastUploadAfter`, `channelLastUploadBefore`, `creatorOnly`, `sortBy`, `sampleVideosPerChannel` |
+| `channels_listVideos` | Get videos from a specific channel | `channelId` | `maxResults` |
+| `playlists_getPlaylist` | Get information about a YouTube playlist | `playlistId` | None |
+| `playlists_getPlaylistItems` | Get videos in a YouTube playlist | `playlistId` | `maxResults` |
 
-### Channel Management
-* Get channel details
-* List channel playlists
-* Get channel statistics
-* Search within channel content
+### Tool Parameters
 
-### Playlist Management
-* List playlist items
-* Get playlist details
-* Search within playlists
-* Get playlist video transcripts
+#### `videos_getVideo`
+- `videoId` (`string`): The YouTube video ID.
+- `parts` (`string[]`, optional): Specific video resource parts to retrieve.
+
+#### `videos_searchVideos`
+- `query` (`string`): Search query.
+- `maxResults` (`number`, optional): Maximum number of results to return.
+- `order` (`string`, optional): Result ordering such as `relevance` or `date`.
+- `publishedAfter` (`string`, optional): Only include videos published after this ISO 8601 date.
+- `publishedBefore` (`string`, optional): Only include videos published before this ISO 8601 date.
+- `channelId` (`string`, optional): Restrict results to a specific channel.
+- `uniqueChannels` (`boolean`, optional): Return only one video per unique channel.
+- `channelMinSubscribers` / `channelMaxSubscribers` (`number`, optional): Filter matched videos by the subscriber band of their channel.
+- `channelLastUploadAfter` / `channelLastUploadBefore` (`string`, optional): Filter matched videos by the latest upload activity of their channel.
+- `creatorOnly` (`boolean`, optional): Restrict results to channels heuristically classified as creators.
+- `sortBy` (`string`, optional): Supports `relevance`, `subscribers_asc`, `subscribers_desc`, `indie_priority`, and `recent_activity`.
+
+#### `transcripts_getTranscript`
+- `videoId` (`string`): The YouTube video ID.
+- `language` (`string`, optional): Transcript language code. Falls back to `YOUTUBE_TRANSCRIPT_LANG` or `en`.
+
+#### `channels_getChannel`
+- `channelId` (`string`): The YouTube channel ID.
+
+Responses now include:
+- `latestVideoPublishedAt`
+- `normalizedMetadata`
+  - includes `country`, `defaultLanguage`, `joinedAt`, `customUrl`, `emailsFound`, `contactLinks`, and creator-vs-brand heuristic fields
+
+#### `channels_getChannels`
+- `channelIds` (`string[]`): A list of YouTube channel IDs.
+- `includeLatestUpload` (`boolean`, optional): Whether to include `latestVideoPublishedAt`. Defaults to `true`.
+
+#### `channels_searchChannels`
+- `query` (`string`): Channel search query or handle.
+- `maxResults` (`number`, optional): Maximum number of channels to return.
+- `order` (`string`, optional): Result ordering such as `relevance`.
+- `channelType` (`string`, optional): Restrict the search to a channel type.
+- `minSubscribers` / `maxSubscribers` (`number`, optional): Filter channels by subscriber band.
+- `lastUploadAfter` / `lastUploadBefore` (`string`, optional): Filter channels by latest upload activity.
+- `creatorOnly` (`boolean`, optional): Restrict results to channels heuristically classified as creators.
+- `sortBy` (`string`, optional): Supports `relevance`, `subscribers_asc`, `subscribers_desc`, `indie_priority`, and `recent_activity`.
+
+#### `channels_findCreators`
+- `query` (`string`): Topic, game, or mention query to discover channels from matched videos.
+- `videoPublishedAfter` / `videoPublishedBefore` (`string`, optional): Recency filters for the matched videos.
+- `channelMinSubscribers` / `channelMaxSubscribers` (`number`, optional): Subscriber band filters for returned channels.
+- `channelLastUploadAfter` / `channelLastUploadBefore` (`string`, optional): Latest-upload activity filters for returned channels.
+- `creatorOnly` (`boolean`, optional): Restrict results to channels heuristically classified as creators.
+- `sortBy` (`string`, optional): Supports `relevance`, `subscribers_asc`, `subscribers_desc`, `indie_priority`, and `recent_activity`.
+- `sampleVideosPerChannel` (`number`, optional): How many matched videos to include per returned channel.
+
+#### `channels_listVideos`
+- `channelId` (`string`): The YouTube channel ID.
+- `maxResults` (`number`, optional): Maximum number of videos to return.
+
+#### `playlists_getPlaylist`
+- `playlistId` (`string`): The YouTube playlist ID.
+
+#### `playlists_getPlaylistItems`
+- `playlistId` (`string`): The YouTube playlist ID.
+- `maxResults` (`number`, optional): Maximum number of playlist items to return.
 
 ## Installation
 
@@ -46,7 +102,9 @@ npm install -g zubeid-youtube-mcp-server
     "zubeid-youtube-mcp-server": {
       "command": "zubeid-youtube-mcp-server",
       "env": {
-        "YOUTUBE_API_KEY": "your_youtube_api_key_here"
+        "YOUTUBE_API_KEY": "your_primary_youtube_api_key",
+        "YOUTUBE_API_KEY2": "your_secondary_youtube_api_key",
+        "YOUTUBE_API_KEY3": "your_tertiary_youtube_api_key"
       }
     }
   }
@@ -64,7 +122,9 @@ Add this to your Claude Desktop configuration:
       "command": "npx",
       "args": ["-y", "zubeid-youtube-mcp-server"],
       "env": {
-        "YOUTUBE_API_KEY": "your_youtube_api_key_here"
+        "YOUTUBE_API_KEY": "your_primary_youtube_api_key",
+        "YOUTUBE_API_KEY2": "your_secondary_youtube_api_key",
+        "YOUTUBE_API_KEY3": "your_tertiary_youtube_api_key"
       }
     }
   }
@@ -81,13 +141,18 @@ npx -y @smithery/cli install @ZubeidHendricks/youtube --client claude
 
 ## Configuration
 Set the following environment variables:
-* `YOUTUBE_API_KEY`: Your YouTube Data API key (required)
+* `YOUTUBE_API_KEY`: Primary YouTube Data API key
+* `YOUTUBE_API_KEY2`: Secondary fallback API key
+* `YOUTUBE_API_KEY3`: Third fallback API key
 * `YOUTUBE_TRANSCRIPT_LANG`: Default language for transcripts (optional, defaults to 'en')
+
+At least one of `YOUTUBE_API_KEY`, `YOUTUBE_API_KEY2`, or `YOUTUBE_API_KEY3` must be set. When a request fails because a key has exhausted its quota, the server retries the same request with the next configured key.
+
 ### Using with VS Code
 
 For one-click installation, click one of the install buttons below:
 
-[![Install with NPX in VS Code](https://img.shields.io/badge/VS_Code-NPM-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=youtube&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22zubeid-youtube-mcp-server%22%5D%2C%22env%22%3A%7B%22YOUTUBE_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22YouTube+API+Key%22%2C%22password%22%3Atrue%7D%5D) [![Install with NPX in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-NPM-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=youtube&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22zubeid-youtube-mcp-server%22%5D%2C%22env%22%3A%7B%22YOUTUBE_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22YouTube+API+Key%22%2C%22password%22%3Atrue%7D%5D&quality=insiders)
+[![Install with NPX in VS Code](https://img.shields.io/badge/VS_Code-NPM-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=youtube&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22zubeid-youtube-mcp-server%22%5D%2C%22env%22%3A%7B%22YOUTUBE_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22YouTube+API+Key%22%2C%22password%22%3Atrue%7D%5D) [![Install with NPX in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-NPM-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=youtube&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22zubeid-youtube-mcp-server%22%5D%2C%22env%22%3A%7B%22YOUTUBE_API_KEY%22%3A%22%24%7Binput%3AapiKey%22%7D%7D&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22YouTube+API+Key%22%2C%22password%22%3Atrue%7D%5D&quality=insiders)
 
 ### Manual Installation
 
@@ -142,65 +207,6 @@ Optionally, you can add it to a file called `.vscode/mcp.json` in your workspace
   }
 }
 ```
-## YouTube API Setup
-1. Go to Google Cloud Console
-2. Create a new project or select an existing one
-3. Enable the YouTube Data API v3
-4. Create API credentials (API key)
-5. Copy the API key for configuration
-
-## Examples
-
-### Managing Videos
-
-```javascript
-// Get video details
-const video = await youtube.videos.getVideo({
-  videoId: "video-id"
-});
-
-// Get video transcript
-const transcript = await youtube.transcripts.getTranscript({
-  videoId: "video-id",
-  language: "en"
-});
-
-// Search videos
-const searchResults = await youtube.videos.searchVideos({
-  query: "search term",
-  maxResults: 10
-});
-```
-
-### Managing Channels
-
-```javascript
-// Get channel details
-const channel = await youtube.channels.getChannel({
-  channelId: "channel-id"
-});
-
-// List channel videos
-const videos = await youtube.channels.listVideos({
-  channelId: "channel-id",
-  maxResults: 50
-});
-```
-
-### Managing Playlists
-
-```javascript
-// Get playlist items
-const playlistItems = await youtube.playlists.getPlaylistItems({
-  playlistId: "playlist-id",
-  maxResults: 50
-});
-
-// Get playlist details
-const playlist = await youtube.playlists.getPlaylist({
-  playlistId: "playlist-id"
-});
-```
 
 ## Development
 
@@ -208,14 +214,39 @@ const playlist = await youtube.playlists.getPlaylist({
 # Install dependencies
 npm install
 
-# Run tests
-npm test
-
 # Build
 npm run build
 
-# Lint
-npm run lint
+# Start the server (requires at least one configured YouTube API key)
+npm start
+
+# Development mode with auto-rebuild
+npm run dev
+```
+
+## Docker
+
+The included Docker image starts the server over HTTP by default.
+
+- Default transport: `http`
+- Default endpoint: `http://localhost:8088/mcp`
+- Readiness endpoint: `http://localhost:8088/ready`
+- Default mode: stateless
+
+The Docker build copies `.env` into the runtime image and the server loads it automatically on startup. That means the container can run without passing API credentials at `docker run` time, as long as `.env` was present during `docker build`.
+
+```bash
+docker build -t youtube-mcp-server .
+docker run --rm -p 8088:8088 youtube-mcp-server
+```
+
+The container defaults to:
+
+```env
+MCP_TRANSPORT=http
+MCP_HOST=0.0.0.0
+MCP_PORT=8088
+MCP_STATELESS=true
 ```
 
 ## Contributing

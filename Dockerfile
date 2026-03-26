@@ -1,21 +1,31 @@
-FROM node:16-alpine
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
-# Copy package files first for better caching
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm install
-
-# Copy application code
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Set execution permission for CLI
-RUN chmod +x dist/cli.js
+FROM node:22-alpine AS runtime
 
-# Command is provided by smithery.yaml
-CMD ["node", "dist/index.js"]
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV MCP_TRANSPORT=http
+ENV MCP_HOST=0.0.0.0
+ENV MCP_PORT=8088
+ENV MCP_STATELESS=true
+
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/.env ./.env
+
+EXPOSE 8088
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD node -e "fetch('http://127.0.0.1:' + (process.env.MCP_PORT || 8088) + '/ready').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+
+CMD ["node", "./dist/index.js"]

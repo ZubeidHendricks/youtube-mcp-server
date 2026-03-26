@@ -1,36 +1,10 @@
-import { google } from 'googleapis';
 import { PlaylistParams, PlaylistItemsParams, SearchParams } from '../types.js';
+import { withYouTubeClient } from './youtube-client.js';
 
 /**
  * Service for interacting with YouTube playlists
  */
 export class PlaylistService {
-  private youtube;
-  private initialized = false;
-
-  constructor() {
-    // Don't initialize in constructor
-  }
-
-  /**
-   * Initialize the YouTube client only when needed
-   */
-  private initialize() {
-    if (this.initialized) return;
-    
-    const apiKey = process.env.YOUTUBE_API_KEY;
-    if (!apiKey) {
-      throw new Error('YOUTUBE_API_KEY environment variable is not set.');
-    }
-
-    this.youtube = google.youtube({
-      version: "v3",
-      auth: apiKey
-    });
-    
-    this.initialized = true;
-  }
-
   /**
    * Get information about a YouTube playlist
    */
@@ -38,12 +12,10 @@ export class PlaylistService {
     playlistId 
   }: PlaylistParams): Promise<any> {
     try {
-      this.initialize();
-      
-      const response = await this.youtube.playlists.list({
+      const response = await withYouTubeClient((youtube) => youtube.playlists.list({
         part: ['snippet', 'contentDetails'],
         id: [playlistId]
-      });
+      }));
       
       return response.data.items?.[0] || null;
     } catch (error) {
@@ -59,13 +31,11 @@ export class PlaylistService {
     maxResults = 50 
   }: PlaylistItemsParams): Promise<any[]> {
     try {
-      this.initialize();
-      
-      const response = await this.youtube.playlistItems.list({
+      const response = await withYouTubeClient((youtube) => youtube.playlistItems.list({
         part: ['snippet', 'contentDetails'],
         playlistId,
         maxResults
-      });
+      }));
       
       return response.data.items || [];
     } catch (error) {
@@ -81,14 +51,12 @@ export class PlaylistService {
     maxResults = 10 
   }: SearchParams): Promise<any[]> {
     try {
-      this.initialize();
-      
-      const response = await this.youtube.search.list({
+      const response = await withYouTubeClient((youtube) => youtube.search.list({
         part: ['snippet'],
         q: query,
         maxResults,
         type: ['playlist']
-      });
+      }));
       
       return response.data.items || [];
     } catch (error) {
