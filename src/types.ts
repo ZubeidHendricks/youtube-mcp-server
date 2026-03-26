@@ -12,6 +12,17 @@ export interface VideoParams {
 export interface SearchParams {
   query: string;
   maxResults?: number;
+  order?: string;
+  publishedAfter?: string;
+  publishedBefore?: string;
+  channelId?: string;
+  uniqueChannels?: boolean;
+  channelMinSubscribers?: number;
+  channelMaxSubscribers?: number;
+  channelLastUploadAfter?: string;
+  channelLastUploadBefore?: string;
+  creatorOnly?: boolean;
+  sortBy?: 'relevance' | 'date' | 'subscribers_asc' | 'subscribers_desc' | 'indie_priority' | 'recent_activity';
 }
 
 /**
@@ -53,6 +64,49 @@ export interface SearchTranscriptParams {
  */
 export interface ChannelParams {
   channelId: string;
+}
+
+/**
+ * Channel lookup parameters
+ */
+export interface ChannelsParams {
+  channelIds: string[];
+  parts?: string[];
+  includeLatestUpload?: boolean;
+}
+
+/**
+ * Channel search parameters
+ */
+export interface ChannelSearchParams {
+  query: string;
+  maxResults?: number;
+  order?: string;
+  channelType?: string;
+  minSubscribers?: number;
+  maxSubscribers?: number;
+  lastUploadAfter?: string;
+  lastUploadBefore?: string;
+  creatorOnly?: boolean;
+  sortBy?: 'relevance' | 'subscribers_asc' | 'subscribers_desc' | 'indie_priority' | 'recent_activity';
+}
+
+/**
+ * Creator discovery parameters
+ */
+export interface CreatorDiscoveryParams {
+  query: string;
+  maxResults?: number;
+  order?: string;
+  videoPublishedAfter?: string;
+  videoPublishedBefore?: string;
+  channelMinSubscribers?: number;
+  channelMaxSubscribers?: number;
+  channelLastUploadAfter?: string;
+  channelLastUploadBefore?: string;
+  creatorOnly?: boolean;
+  sortBy?: 'relevance' | 'subscribers_asc' | 'subscribers_desc' | 'indie_priority' | 'recent_activity';
+  sampleVideosPerChannel?: number;
 }
 
 /**

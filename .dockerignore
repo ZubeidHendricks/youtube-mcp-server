@@ -3,8 +3,8 @@
 node_modules
 npm-debug.log
 Dockerfile
-.env
 .env.example
+!.env
 *.md
 !README.md
 .gitignore
