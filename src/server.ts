@@ -491,10 +491,11 @@ async function startStdioServer() {
     const transport = new StdioServerTransport();
 
     await server.connect(transport);
-
-    console.log('YouTube MCP Server v1.0.0 started successfully over stdio');
-    console.log('Server will validate YouTube API key when tools are called');
-
+    
+    // Log the server info
+    console.error(`YouTube MCP Server v1.0.0 started successfully`);
+    console.error(`Server will validate YouTube API key when tools are called`);
+    
     return server;
 }
 

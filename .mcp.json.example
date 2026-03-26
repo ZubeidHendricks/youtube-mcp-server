@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "youtube-mcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["dist/cli.js"],
+      "env": {
+        "YOUTUBE_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
