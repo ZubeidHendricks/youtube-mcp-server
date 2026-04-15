@@ -81,7 +81,7 @@ function createMcpServer() {
     const channelService = new ChannelService();
 
     server.setRequestHandler(ListToolsRequestSchema, async () => {
-        console.log('[MCP] list_tools requested');
+        console.error('[MCP] list_tools requested');
         return {
             tools: [
                 {
@@ -393,7 +393,7 @@ function createMcpServer() {
         const { name, arguments: args } = request.params;
         const startedAt = Date.now();
 
-        console.log(`[MCP] tool.start name=${name} args=${safeSerialize(args)}`);
+        console.error(`[MCP] tool.start name=${name} args=${safeSerialize(args)}`);
 
         try {
             let result: unknown;
@@ -433,7 +433,7 @@ function createMcpServer() {
                     throw new Error(`Unknown tool: ${name}`);
             }
 
-            console.log(
+            console.error(
                 `[MCP] tool.success name=${name} durationMs=${Date.now() - startedAt} summary=${summarizeResult(result)}`
             );
 
@@ -510,7 +510,7 @@ async function startHttpMcpServer() {
         const url = new URL(req.url || '/', origin);
 
         res.on('finish', () => {
-            console.log(
+            console.error(
                 `[HTTP] ${req.method} ${url.pathname} status=${res.statusCode} durationMs=${Date.now() - requestStartedAt}`
             );
         });
@@ -536,7 +536,7 @@ async function startHttpMcpServer() {
         if (req.method === 'POST') {
             try {
                 parsedBody = await readJsonBody(req);
-                console.log(`[HTTP] request.body method=${req.method} path=${url.pathname} body=${safeSerialize(parsedBody)}`);
+                console.error(`[HTTP] request.body method=${req.method} path=${url.pathname} body=${safeSerialize(parsedBody)}`);
             } catch (error) {
                 writeJson(res, 400, {
                     jsonrpc: '2.0',
@@ -588,10 +588,10 @@ async function startHttpMcpServer() {
         });
     });
 
-    console.log('YouTube MCP Server v1.0.0 started successfully over HTTP');
-    console.log(`Listening on http://${host}:${port}/mcp`);
-    console.log(`Readiness endpoint available at http://${host}:${port}/ready`);
-    console.log('Server will validate YouTube API key when tools are called');
+    console.error('YouTube MCP Server v1.0.0 started successfully over HTTP');
+    console.error(`Listening on http://${host}:${port}/mcp`);
+    console.error(`Readiness endpoint available at http://${host}:${port}/ready`);
+    console.error('Server will validate YouTube API key when tools are called');
 
     return httpServer;
 }
