@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/zubeidhendricks-youtube-mcp-server-badge.png)](https://mseep.ai/app/zubeidhendricks-youtube-mcp-server)
+
 # YouTube MCP Server
 [![smithery badge](https://smithery.ai/badge/@ZubeidHendricks/youtube)](https://smithery.ai/server/@ZubeidHendricks/youtube)
 
