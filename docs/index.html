@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube MCP Server — give your AI hands on YouTube</title>
+<meta name="description" content="An open-source MCP server that lets Claude and any MCP client search YouTube, read transcripts, and scout channels. One npx command.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='4' width='22' height='16' rx='4' fill='%23FF0033'/%3E%3Cpath d='M10 9l6 3-6 3z' fill='white'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700;800&family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0F0F0F;
+    --panel: #181818;
+    --panel-hover: #212121;
+    --hairline: #2A2A2A;
+    --text: #F1F1F1;
+    --muted: #AAAAAA;
+    --red: #FF0033;
+    --link: #3EA6FF;
+    --caption: rgba(8, 8, 8, 0.82);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Roboto', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--red); color: #fff; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  code, pre, .mono { font-family: 'Roboto Mono', ui-monospace, monospace; }
+
+  /* ---- playhead: scroll progress bar ---- */
+  .playhead {
+    position: fixed; top: 0; left: 0; right: 0; height: 3px;
+    background: rgba(255,255,255,0.08);
+    z-index: 100;
+  }
+  .playhead .fill {
+    height: 100%; width: 0;
+    background: var(--red);
+  }
+  .playhead .dot {
+    position: absolute; top: 50%; width: 13px; height: 13px;
+    background: var(--red); border-radius: 50%;
+    transform: translate(-50%, -50%);
+    left: 0;
+  }
+
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- header ---- */
+  header {
+    padding: 28px 0 0;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 17px; color: var(--text); }
+  .brand:hover { text-decoration: none; }
+  .brand svg { display: block; }
+  .header-links { display: flex; align-items: center; gap: 20px; font-size: 14px; }
+  .header-links .mono { color: var(--muted); }
+
+  /* ---- hero ---- */
+  .hero { padding: 88px 0 56px; }
+  .cue {
+    display: flex; gap: 20px; align-items: baseline;
+  }
+  .cue-time {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px; color: var(--muted);
+    min-width: 44px; text-align: right;
+    user-select: none;
+  }
+  .caption-line { margin-bottom: 10px; }
+  .caption-line > span {
+    display: inline-block;
+    background: var(--caption);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06);
+    padding: 6px 18px 10px;
+    font-family: 'Roboto Condensed', sans-serif;
+    font-weight: 800;
+    font-size: clamp(38px, 7.2vw, 76px);
+    line-height: 1.06;
+    letter-spacing: -0.5px;
+    color: #fff;
+  }
+  .caption-line .accent { color: var(--red); }
+  @media (prefers-reduced-motion: no-preference) {
+    .caption-line > span { opacity: 0; transform: translateY(10px); animation: cue-in 0.45s ease-out forwards; }
+    .caption-line:nth-child(2) > span { animation-delay: 0.35s; }
+    .caption-line:nth-child(3) > span { animation-delay: 0.7s; }
+    .hero-sub, .install-pill, .stats { opacity: 0; animation: cue-in 0.5s ease-out 1.05s forwards; }
+  }
+  @keyframes cue-in { to { opacity: 1; transform: translateY(0); } }
+
+  .hero-sub {
+    max-width: 560px;
+    margin: 28px 0 0 64px;
+    color: var(--muted);
+    font-size: 18px;
+  }
+  .hero-sub strong { color: var(--text); font-weight: 500; }
+
+  .install-pill {
+    margin: 32px 0 0 64px;
+    display: inline-flex; align-items: center; gap: 14px;
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    padding: 12px 12px 12px 22px;
+    font-size: 15px;
+  }
+  .install-pill code { color: var(--text); }
+  .install-pill code .dim { color: var(--muted); }
+  .copy-btn {
+    background: var(--text); color: #0f0f0f;
+    border: none; border-radius: 999px;
+    padding: 8px 18px;
+    font: 500 14px 'Roboto', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .copy-btn:hover { background: #fff; }
+  .copy-btn.copied { background: var(--red); color: #fff; }
+
+  .stats {
+    margin: 40px 0 0 64px;
+    display: flex; gap: 36px; flex-wrap: wrap;
+    font-size: 14px; color: var(--muted);
+  }
+  .stats b { display: block; font: 700 26px 'Roboto Condensed', sans-serif; color: var(--text); letter-spacing: 0.3px; }
+
+  @media (max-width: 640px) {
+    .cue-time { display: none; }
+    .hero-sub, .install-pill, .stats { margin-left: 0; }
+    .hero { padding-top: 56px; }
+  }
+
+  /* ---- sections ---- */
+  section { padding: 72px 0 0; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+  .sec-head h2 {
+    font: 800 32px 'Roboto Condensed', sans-serif;
+    letter-spacing: 0.2px;
+  }
+  .sec-head .bar { width: 34px; height: 5px; background: var(--red); border-radius: 3px; align-self: center; }
+  .sec-sub { color: var(--muted); max-width: 640px; margin-bottom: 32px; }
+
+  /* ---- demo ---- */
+  .demo {
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    padding: 28px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13.5px;
+    line-height: 1.75;
+    overflow-x: auto;
+  }
+  .demo .role { color: var(--muted); user-select: none; }
+  .demo .user-msg { color: var(--text); }
+  .demo .tool { color: var(--red); font-weight: 500; }
+  .demo .json { color: #7EC699; }
+  .demo .arrow { color: var(--link); }
+  .demo .cap {
+    background: var(--caption);
+    padding: 2px 8px;
+    color: #fff;
+    border-radius: 3px;
+  }
+  .demo .t { color: var(--muted); }
+  .demo-row { margin-bottom: 14px; }
+  .demo-row:last-child { margin-bottom: 0; }
+
+  /* ---- tools ---- */
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .chip {
+    background: var(--panel-hover);
+    color: var(--text);
+    border: none; border-radius: 8px;
+    padding: 7px 14px;
+    font: 500 14px 'Roboto', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .chip:hover { background: #303030; }
+  .chip.active { background: var(--text); color: var(--bg); }
+
+  .tool-list { display: flex; flex-direction: column; }
+  .tool-row {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 24px;
+    padding: 18px 14px;
+    border-top: 1px solid var(--hairline);
+    border-radius: 8px;
+    transition: background 0.15s;
+  }
+  .tool-row:hover { background: var(--panel); }
+  .tool-row.hidden { display: none; }
+  .tool-name { font-family: 'Roboto Mono', monospace; font-size: 14px; color: var(--text); }
+  .tool-name .ns { color: var(--muted); }
+  .tool-desc { color: var(--muted); font-size: 15px; }
+  .tool-desc .params { display: block; margin-top: 4px; font-family: 'Roboto Mono', monospace; font-size: 12px; color: #6f6f6f; }
+  .tool-badge {
+    display: inline-block; margin-left: 10px;
+    font: 500 11px 'Roboto', sans-serif;
+    color: var(--red);
+    border: 1px solid var(--red);
+    border-radius: 4px; padding: 1px 6px;
+    vertical-align: 2px;
+  }
+  @media (max-width: 640px) {
+    .tool-row { grid-template-columns: 1fr; gap: 6px; }
+  }
+
+  /* ---- install ---- */
+  .tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 0; }
+  .tab {
+    background: none; border: none;
+    color: var(--muted);
+    padding: 10px 4px; margin-right: 14px;
+    font: 500 15px 'Roboto', sans-serif;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--red); }
+  .tab-panels { border-top: 1px solid var(--hairline); }
+  .tab-panel { display: none; padding-top: 24px; }
+  .tab-panel.active { display: block; }
+  .tab-panel p { color: var(--muted); font-size: 15px; margin-bottom: 16px; max-width: 640px; }
+  .codeblock {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    margin-bottom: 16px;
+  }
+  .codeblock pre {
+    padding: 20px 22px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  .codeblock .copy-btn {
+    position: absolute; top: 12px; right: 12px;
+    background: var(--panel-hover); color: var(--muted);
+  }
+  .codeblock .copy-btn:hover { background: #303030; color: var(--text); }
+  .codeblock .copy-btn.copied { background: var(--red); color: #fff; }
+  .codeblock .k { color: #9CDCFE; }
+  .codeblock .s { color: #7EC699; }
+  .codeblock .c { color: #6f6f6f; }
+
+  .keynote {
+    background: var(--panel);
+    border-left: 4px solid var(--red);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    color: var(--muted);
+    font-size: 14.5px;
+    max-width: 720px;
+  }
+  .keynote a { white-space: nowrap; }
+
+  /* ---- footer ---- */
+  footer {
+    margin-top: 96px;
+    border-top: 1px solid var(--hairline);
+    padding: 32px 0 48px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; flex-wrap: wrap;
+    color: var(--muted); font-size: 14px;
+  }
+  .foot-links { display: flex; gap: 24px; }
+</style>
+</head>
+<body>
+
+<div class="playhead" aria-hidden="true"><div class="fill" id="ph-fill"></div><div class="dot" id="ph-dot"></div></div>
+
+<div class="wrap">
+
+<header>
+  <a class="brand" href="https://github.com/ZubeidHendricks/youtube-mcp-server">
+    <svg width="30" height="22" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="4" fill="#FF0033"/><path d="M10 9l6 3-6 3z" fill="#fff"/></svg>
+    youtube-mcp-server
+  </a>
+  <nav class="header-links">
+    <a href="#tools">Tools</a>
+    <a href="#install">Install</a>
+    <a href="https://www.npmjs.com/package/zubeid-youtube-mcp-server">npm</a>
+    <a href="https://github.com/ZubeidHendricks/youtube-mcp-server">GitHub</a>
+  </nav>
+</header>
+
+<main>
+
+<div class="hero">
+  <div class="cue">
+    <div class="cue-time">0:00</div>
+    <h1>
+      <div class="caption-line"><span>Give your AI</span></div>
+      <div class="caption-line"><span>hands on <span class="accent">YouTube</span>.</span></div>
+    </h1>
+  </div>
+  <p class="hero-sub">An open-source <strong>Model Context Protocol server</strong> that lets Claude — or any MCP client — search videos, read transcripts, and scout channels. No SDK, no glue code.</p>
+  <div class="install-pill">
+    <code><span class="dim">$</span> npx -y zubeid-youtube-mcp-server</code>
+    <button class="copy-btn" data-copy="npx -y zubeid-youtube-mcp-server">Copy</button>
+  </div>
+  <div class="stats">
+    <div><b id="stat-downloads">103k+</b>npm downloads</div>
+    <div><b id="stat-stars">548</b>GitHub stars</div>
+    <div><b>10</b>MCP tools</div>
+    <div><b>MIT</b>license</div>
+  </div>
+</div>
+
+<section id="demo">
+  <div class="sec-head"><div class="bar"></div><h2>What a session looks like</h2></div>
+  <p class="sec-sub">Your AI chains tools on its own: search for videos, pick one, pull the transcript, answer from the actual words spoken.</p>
+  <div class="demo" role="img" aria-label="Example MCP session: a user asks a question, the AI calls videos_searchVideos and transcripts_getTranscript, then answers from the transcript.">
+    <div class="demo-row"><span class="role">you&nbsp;&nbsp;</span><span class="user-msg">What does this conference talk actually say about agent memory?</span></div>
+    <div class="demo-row"><span class="role">ai&nbsp;&nbsp;&nbsp;</span><span class="arrow">→</span> <span class="tool">videos_searchVideos</span> <span class="json">{ "query": "building agent memory talk", "maxResults": 3 }</span></div>
+    <div class="demo-row"><span class="role">&nbsp;</span><span class="arrow">→</span> <span class="tool">transcripts_getTranscript</span> <span class="json">{ "videoId": "dQw4…" }</span></div>
+    <div class="demo-row"><span class="role">&nbsp;</span><span class="t">12:41</span> <span class="cap">the trick is treating memory as an index, not a log</span></div>
+    <div class="demo-row"><span class="role">&nbsp;</span><span class="t">13:02</span> <span class="cap">each fact lives in one file, linked like a wiki</span></div>
+    <div class="demo-row"><span class="role">ai&nbsp;&nbsp;&nbsp;</span><span class="user-msg">The speaker argues memory should be an index of small linked facts, not a transcript log — here's the breakdown with timestamps…</span></div>
+  </div>
+</section>
+
+<section id="tools">
+  <div class="sec-head"><div class="bar"></div><h2>Ten tools, four services</h2></div>
+  <p class="sec-sub">Every tool maps to the YouTube Data API v3 — plus keyless transcript retrieval and creator-discovery filters you won't find in the raw API.</p>
+
+  <div class="chips" role="tablist" aria-label="Filter tools by service">
+    <button class="chip active" data-filter="all">All</button>
+    <button class="chip" data-filter="videos">Videos</button>
+    <button class="chip" data-filter="transcripts">Transcripts</button>
+    <button class="chip" data-filter="channels">Channels</button>
+    <button class="chip" data-filter="playlists">Playlists</button>
+  </div>
+
+  <div class="tool-list">
+    <div class="tool-row" data-cat="videos">
+      <div class="tool-name"><span class="ns">videos_</span>getVideo</div>
+      <div class="tool-desc">Full detail for one video — snippet, statistics, content details, any part you ask for.
+        <span class="params">videoId · parts?</span></div>
+    </div>
+    <div class="tool-row" data-cat="videos">
+      <div class="tool-name"><span class="ns">videos_</span>searchVideos</div>
+      <div class="tool-desc">Search all of YouTube with date, channel, and subscriber-band filters, plus creator-only mode and custom sort orders.
+        <span class="params">query · maxResults? · order? · publishedAfter? · channelMinSubscribers? · creatorOnly? · sortBy? · …</span></div>
+    </div>
+    <div class="tool-row" data-cat="transcripts">
+      <div class="tool-name"><span class="ns">transcripts_</span>getTranscript <span class="tool-badge">no API key</span></div>
+      <div class="tool-desc">The words spoken in a video, timestamped, in your chosen language. Works without a YouTube API key.
+        <span class="params">videoId · language?</span></div>
+    </div>
+    <div class="tool-row" data-cat="channels">
+      <div class="tool-name"><span class="ns">channels_</span>getChannel</div>
+      <div class="tool-desc">One channel's profile with normalized metadata: country, join date, custom URL, contact links, creator-vs-brand signals.
+        <span class="params">channelId</span></div>
+    </div>
+    <div class="tool-row" data-cat="channels">
+      <div class="tool-name"><span class="ns">channels_</span>getChannels</div>
+      <div class="tool-desc">Batch lookup for many channels at once, optionally with each channel's latest upload date.
+        <span class="params">channelIds · parts? · includeLatestUpload?</span></div>
+    </div>
+    <div class="tool-row" data-cat="channels">
+      <div class="tool-name"><span class="ns">channels_</span>searchChannels</div>
+      <div class="tool-desc">Find channels by handle, name, or query — filter by subscriber band and how recently they uploaded.
+        <span class="params">query · minSubscribers? · lastUploadAfter? · creatorOnly? · sortBy? · …</span></div>
+    </div>
+    <div class="tool-row" data-cat="channels">
+      <div class="tool-name"><span class="ns">channels_</span>findCreators</div>
+      <div class="tool-desc">Discover creators from the videos that mention a topic — built for scouting indie channels by size and activity.
+        <span class="params">query · channelMinSubscribers? · videoPublishedAfter? · sampleVideosPerChannel? · …</span></div>
+    </div>
+    <div class="tool-row" data-cat="channels">
+      <div class="tool-name"><span class="ns">channels_</span>listVideos</div>
+      <div class="tool-desc">A channel's uploads, newest first.
+        <span class="params">channelId · maxResults?</span></div>
+    </div>
+    <div class="tool-row" data-cat="playlists">
+      <div class="tool-name"><span class="ns">playlists_</span>getPlaylist</div>
+      <div class="tool-desc">Title, owner, and metadata for a playlist.
+        <span class="params">playlistId</span></div>
+    </div>
+    <div class="tool-row" data-cat="playlists">
+      <div class="tool-name"><span class="ns">playlists_</span>getPlaylistItems</div>
+      <div class="tool-desc">Every video in a playlist, in order.
+        <span class="params">playlistId · maxResults?</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="sec-head"><div class="bar"></div><h2>Install</h2></div>
+  <p class="sec-sub">Pick your client. Everything below is copy-paste ready.</p>
+
+  <div class="tabs" role="tablist" aria-label="Installation methods">
+    <button class="tab active" data-tab="claude">Claude Desktop / Code</button>
+    <button class="tab" data-tab="vscode">VS Code</button>
+    <button class="tab" data-tab="smithery">Smithery</button>
+    <button class="tab" data-tab="docker">Docker</button>
+  </div>
+
+  <div class="tab-panels">
+    <div class="tab-panel active" id="panel-claude">
+      <p>Add this to <code>claude_desktop_config.json</code> (macOS: <code>~/Library/Application&nbsp;Support/Claude/</code>, Windows: <code>%APPDATA%\Claude\</code>) or your project's <code>.mcp.json</code>. Extra keys are optional fallbacks — the server rotates to the next key when one runs out of quota.</p>
+      <div class="codeblock">
+        <button class="copy-btn" data-copy-target="code-claude">Copy</button>
+        <pre id="code-claude">{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"youtube"</span>: {
+      <span class="k">"command"</span>: <span class="s">"npx"</span>,
+      <span class="k">"args"</span>: [<span class="s">"-y"</span>, <span class="s">"zubeid-youtube-mcp-server"</span>],
+      <span class="k">"env"</span>: {
+        <span class="k">"YOUTUBE_API_KEY"</span>: <span class="s">"your_youtube_api_key"</span>
+      }
+    }
+  }
+}</pre>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-vscode">
+      <p>Add to <code>.vscode/mcp.json</code> in your workspace — VS Code prompts for the key and stores it securely.</p>
+      <div class="codeblock">
+        <button class="copy-btn" data-copy-target="code-vscode">Copy</button>
+        <pre id="code-vscode">{
+  <span class="k">"inputs"</span>: [
+    { <span class="k">"type"</span>: <span class="s">"promptString"</span>, <span class="k">"id"</span>: <span class="s">"apiKey"</span>, <span class="k">"description"</span>: <span class="s">"YouTube API Key"</span>, <span class="k">"password"</span>: <span class="s">true</span> }
+  ],
+  <span class="k">"servers"</span>: {
+    <span class="k">"youtube"</span>: {
+      <span class="k">"command"</span>: <span class="s">"npx"</span>,
+      <span class="k">"args"</span>: [<span class="s">"-y"</span>, <span class="s">"zubeid-youtube-mcp-server"</span>],
+      <span class="k">"env"</span>: { <span class="k">"YOUTUBE_API_KEY"</span>: <span class="s">"${input:apiKey}"</span> }
+    }
+  }
+}</pre>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-smithery">
+      <p>One command installs and configures the server for Claude Desktop.</p>
+      <div class="codeblock">
+        <button class="copy-btn" data-copy-target="code-smithery">Copy</button>
+        <pre id="code-smithery">npx -y @smithery/cli install @ZubeidHendricks/youtube --client claude</pre>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-docker">
+      <p>The container serves MCP over HTTP at <code>/mcp</code> with a readiness probe at <code>/ready</code> — drop it behind n8n, LibreChat, or anything that speaks streamable HTTP.</p>
+      <div class="codeblock">
+        <button class="copy-btn" data-copy-target="code-docker">Copy</button>
+        <pre id="code-docker"><span class="c"># build with your .env present, then:</span>
+docker build -t youtube-mcp-server .
+docker run --rm -p 8088:8088 youtube-mcp-server</pre>
+      </div>
+    </div>
+  </div>
+
+  <p class="keynote">You'll need a free <strong>YouTube Data API v3 key</strong> from the <a href="https://console.cloud.google.com/apis/credentials">Google Cloud Console</a> for video, channel, and playlist tools. Transcripts work with no key at all.</p>
+</section>
+
+</main>
+
+<footer>
+  <div>MIT © Zubeid Hendricks</div>
+  <div class="foot-links">
+    <a href="https://github.com/ZubeidHendricks/youtube-mcp-server">GitHub</a>
+    <a href="https://www.npmjs.com/package/zubeid-youtube-mcp-server">npm</a>
+    <a href="https://github.com/ZubeidHendricks/youtube-mcp-server/issues">Issues</a>
+    <a href="https://smithery.ai/server/@ZubeidHendricks/youtube">Smithery</a>
+  </div>
+</footer>
+
+</div>
+
+<script>
+  // scroll playhead
+  const fill = document.getElementById('ph-fill');
+  const dot = document.getElementById('ph-dot');
+  function playhead() {
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const p = max > 0 ? Math.min(scrollY / max, 1) : 0;
+    fill.style.width = (p * 100) + '%';
+    dot.style.left = (p * 100) + '%';
+  }
+  addEventListener('scroll', playhead, { passive: true });
+  playhead();
+
+  // copy buttons
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const text = btn.dataset.copy ?? document.getElementById(btn.dataset.copyTarget).textContent;
+      try { await navigator.clipboard.writeText(text); } catch {}
+      btn.classList.add('copied'); btn.textContent = 'Copied';
+      setTimeout(() => { btn.classList.remove('copied'); btn.textContent = 'Copy'; }, 1600);
+    });
+  });
+
+  // tool filter chips
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const f = chip.dataset.filter;
+      document.querySelectorAll('.tool-row').forEach(row => {
+        row.classList.toggle('hidden', f !== 'all' && row.dataset.cat !== f);
+      });
+    });
+  });
+
+  // install tabs
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // live stats (fallbacks are baked into the HTML)
+  const fmt = n => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n);
+  fetch('https://api.github.com/repos/ZubeidHendricks/youtube-mcp-server')
+    .then(r => r.json())
+    .then(d => { if (d.stargazers_count) document.getElementById('stat-stars').textContent = fmt(d.stargazers_count); })
+    .catch(() => {});
+  fetch('https://api.npmjs.org/downloads/range/2025-01-01:3000-01-01/zubeid-youtube-mcp-server')
+    .then(r => r.json())
+    .then(d => {
+      const total = (d.downloads || []).reduce((s, x) => s + x.downloads, 0);
+      if (total) document.getElementById('stat-downloads').textContent = fmt(total) + '+';
+    })
+    .catch(() => {});
+</script>
+
+</body>
+</html>
