@@ -66,7 +66,7 @@ function createMcpServer() {
     const server = new Server(
         {
             name: 'zubeid-youtube-mcp-server',
-            version: '1.0.0',
+            version: '1.0.1',
         },
         {
             capabilities: {
@@ -493,7 +493,7 @@ async function startStdioServer() {
     await server.connect(transport);
     
     // Log the server info
-    console.error(`YouTube MCP Server v1.0.0 started successfully`);
+    console.error(`YouTube MCP Server v1.0.1 started successfully`);
     console.error(`Server will validate YouTube API key when tools are called`);
     
     return server;
@@ -588,7 +588,7 @@ async function startHttpMcpServer() {
         });
     });
 
-    console.error('YouTube MCP Server v1.0.0 started successfully over HTTP');
+    console.error('YouTube MCP Server v1.0.1 started successfully over HTTP');
     console.error(`Listening on http://${host}:${port}/mcp`);
     console.error(`Readiness endpoint available at http://${host}:${port}/ready`);
     console.error('Server will validate YouTube API key when tools are called');
