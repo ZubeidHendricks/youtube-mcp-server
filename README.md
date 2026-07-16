@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/zubeidhendricks-youtube-mcp-server-badge.png)](https://mseep.ai/app/zubeidhendricks-youtube-mcp-server)
+
 # YouTube MCP Server
 [![npm version](https://img.shields.io/npm/v/zubeid-youtube-mcp-server)](https://www.npmjs.com/package/zubeid-youtube-mcp-server)
 [![npm downloads](https://img.shields.io/npm/dm/zubeid-youtube-mcp-server?label=downloads%2Fmonth)](https://www.npmjs.com/package/zubeid-youtube-mcp-server)
