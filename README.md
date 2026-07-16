@@ -6,6 +6,8 @@
 
 A Model Context Protocol (MCP) server implementation for YouTube, enabling AI language models to interact with YouTube content through a standardized interface.
 
+**Website:** [zubeidhendricks.github.io/youtube-mcp-server](https://zubeidhendricks.github.io/youtube-mcp-server/)
+
 ## Available Tools
 
 The server currently exposes 10 MCP tools.
