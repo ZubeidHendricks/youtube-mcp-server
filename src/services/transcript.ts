@@ -28,8 +28,7 @@ export class TranscriptService {
     try {
       this.initialize();
       
-      // YoutubeTranscript.fetchTranscript only accepts videoId
-      const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+      const transcript = await YoutubeTranscript.fetchTranscript(videoId, { lang: language });
       
       return {
         videoId,
@@ -52,8 +51,8 @@ export class TranscriptService {
     try {
       this.initialize();
       
-      const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-      
+      const transcript = await YoutubeTranscript.fetchTranscript(videoId, { lang: language });
+
       // Search through transcript for the query
       const matches = transcript.filter(item => 
         item.text.toLowerCase().includes(query.toLowerCase())
@@ -80,8 +79,8 @@ export class TranscriptService {
     try {
       this.initialize();
       
-      const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-      
+      const transcript = await YoutubeTranscript.fetchTranscript(videoId, { lang: language });
+
       // Format timestamps in human-readable format
       const timestampedTranscript = transcript.map(item => {
         const seconds = item.offset / 1000;
