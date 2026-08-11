@@ -1,4 +1,6 @@
 # YouTube MCP Server
+
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2FZubeidHendricks%2Fyoutube-mcp-server.svg)](https://mcptoplist.com/server/glama%2FZubeidHendricks%2Fyoutube-mcp-server)
 [![npm version](https://img.shields.io/npm/v/zubeid-youtube-mcp-server)](https://www.npmjs.com/package/zubeid-youtube-mcp-server)
 [![npm downloads](https://img.shields.io/npm/dm/zubeid-youtube-mcp-server?label=downloads%2Fmonth)](https://www.npmjs.com/package/zubeid-youtube-mcp-server)
 [![npm total downloads](https://img.shields.io/npm/dt/zubeid-youtube-mcp-server?label=total%20downloads)](https://www.npmjs.com/package/zubeid-youtube-mcp-server)
