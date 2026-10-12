@@ -12,6 +12,11 @@ import { TranscriptService } from './services/transcript.js';
 import { PlaylistService } from './services/playlist.js';
 import { ChannelService } from './services/channel.js';
 import {
+    bearerTokenFrom,
+    remoteAuthorizationEnabled,
+    runWithAccessToken,
+} from './services/request-auth.js';
+import {
     VideoParams,
     SearchParams,
     TranscriptParams,
@@ -27,6 +32,18 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const VERSION: string = require('../package.json').version;
+
+// MCP_LOG_LEVEL=warn keeps request lines, request bodies and tool arguments out
+// of the log, for deployments where those are other people's content. Errors
+// are always logged. Everything goes to stderr: stdout belongs to the STDIO
+// transport.
+const QUIET = ['warn', 'warning', 'error'].includes((process.env.MCP_LOG_LEVEL || 'info').toLowerCase());
+
+function logInfo(message: string) {
+    if (!QUIET) {
+        console.error(message);
+    }
+}
 
 function safeSerialize(value: unknown, maxLength = 4000) {
     try {
@@ -85,7 +102,7 @@ function createMcpServer() {
     const channelService = new ChannelService();
 
     server.setRequestHandler(ListToolsRequestSchema, async () => {
-        console.error('[MCP] list_tools requested');
+        logInfo('[MCP] list_tools requested');
         return {
             tools: [
                 {
@@ -397,7 +414,7 @@ function createMcpServer() {
         const { name, arguments: args } = request.params;
         const startedAt = Date.now();
 
-        console.error(`[MCP] tool.start name=${name} args=${safeSerialize(args)}`);
+        logInfo(`[MCP] tool.start name=${name} args=${safeSerialize(args)}`);
 
         try {
             let result: unknown;
@@ -437,7 +454,7 @@ function createMcpServer() {
                     throw new Error(`Unknown tool: ${name}`);
             }
 
-            console.error(
+            logInfo(
                 `[MCP] tool.success name=${name} durationMs=${Date.now() - startedAt} summary=${summarizeResult(result)}`
             );
 
@@ -507,6 +524,7 @@ async function startHttpMcpServer() {
     const host = process.env.MCP_HOST || '0.0.0.0';
     const port = Number(process.env.MCP_PORT || '8088');
     const stateless = process.env.MCP_STATELESS !== 'false';
+    const remoteAuthorization = remoteAuthorizationEnabled();
 
     const httpServer = createHttpServer(async (req, res) => {
         const requestStartedAt = Date.now();
@@ -514,7 +532,7 @@ async function startHttpMcpServer() {
         const url = new URL(req.url || '/', origin);
 
         res.on('finish', () => {
-            console.error(
+            logInfo(
                 `[HTTP] ${req.method} ${url.pathname} status=${res.statusCode} durationMs=${Date.now() - requestStartedAt}`
             );
         });
@@ -535,12 +553,33 @@ async function startHttpMcpServer() {
             return;
         }
 
+        // Remote authorization: the caller's token or nothing. Refused before
+        // the body is read, so an unauthenticated request costs one header check.
+        let accessToken: string | undefined;
+
+        if (remoteAuthorization) {
+            accessToken = bearerTokenFrom(req.headers.authorization);
+
+            if (!accessToken) {
+                res.setHeader('WWW-Authenticate', 'Bearer');
+                writeJson(res, 401, {
+                    jsonrpc: '2.0',
+                    error: {
+                        code: -32001,
+                        message: 'Authorization: Bearer <Google OAuth access token> is required.',
+                    },
+                    id: null,
+                });
+                return;
+            }
+        }
+
         let parsedBody: unknown;
 
         if (req.method === 'POST') {
             try {
                 parsedBody = await readJsonBody(req);
-                console.error(`[HTTP] request.body method=${req.method} path=${url.pathname} body=${safeSerialize(parsedBody)}`);
+                logInfo(`[HTTP] request.body method=${req.method} path=${url.pathname} body=${safeSerialize(parsedBody)}`);
             } catch (error) {
                 writeJson(res, 400, {
                     jsonrpc: '2.0',
@@ -567,7 +606,12 @@ async function startHttpMcpServer() {
 
         try {
             await server.connect(transport);
-            await transport.handleRequest(req, res, parsedBody);
+
+            if (accessToken) {
+                await runWithAccessToken(accessToken, () => transport.handleRequest(req, res, parsedBody));
+            } else {
+                await transport.handleRequest(req, res, parsedBody);
+            }
         } catch (error) {
             console.error('Error handling HTTP MCP request:', error);
 
@@ -595,7 +639,11 @@ async function startHttpMcpServer() {
     console.error(`YouTube MCP Server v${VERSION} started successfully over HTTP`);
     console.error(`Listening on http://${host}:${port}/mcp`);
     console.error(`Readiness endpoint available at http://${host}:${port}/ready`);
-    console.error('Server will validate YouTube API key when tools are called');
+    console.error(
+        remoteAuthorization
+            ? 'Remote authorization enabled: every request must carry its own access token'
+            : 'Server will validate YouTube API key when tools are called'
+    );
 
     return httpServer;
 }

@@ -17,7 +17,7 @@
     "build": "tsc",
     "dev": "nodemon --exec \"npm run build && npm start\" --ext ts",
     "prepublishOnly": "npm run build",
-    "test": "node scripts/smoke-test.mjs"
+    "test": "node scripts/smoke-test.mjs && node scripts/remote-auth-test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.1.1",

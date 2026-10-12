@@ -254,6 +254,37 @@ MCP_PORT=8088
 MCP_STATELESS=true
 ```
 
+### Remote authorization (one server, many accounts)
+
+By default the server spends its own API key on every request. To host one
+server for many users, let each request bring its own credential instead:
+
+```env
+MCP_TRANSPORT=http
+MCP_REMOTE_AUTHORIZATION=true
+```
+
+With this set:
+
+* every request to `/mcp` must carry `Authorization: Bearer <token>`, where the
+  token is a Google OAuth 2.0 access token granted a YouTube scope
+  (`https://www.googleapis.com/auth/youtube.readonly` covers every tool here);
+  a request without one is refused with `401`
+* the token is used for the YouTube API calls made while handling that request,
+  and for nothing else — it is not stored, and concurrent requests never see
+  each other's token
+* no `YOUTUBE_API_KEY` is needed, and one that is set is never used
+* quota is charged to the Google Cloud project that issued each token
+
+Obtaining the token (the OAuth consent flow) is the job of whatever sits in
+front of the server — an MCP gateway or your own application.
+
+### Logging
+
+The server logs each request line, request body and tool arguments to stderr.
+Set `MCP_LOG_LEVEL=warn` to log errors only, for deployments where request
+content should not end up in logs.
+
 ## Contributing
 See CONTRIBUTING.md for information about contributing to this repository.
 

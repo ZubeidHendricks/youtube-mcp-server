@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { currentAccessToken, remoteAuthorizationEnabled } from './request-auth.js';
 
 type YouTubeClient = ReturnType<typeof google.youtube>;
 
@@ -114,5 +115,21 @@ export function hasConfiguredYouTubeApiKey(): boolean {
 }
 
 export async function withYouTubeClient<T>(request: (youtube: YouTubeClient) => Promise<T>): Promise<T> {
+  if (remoteAuthorizationEnabled()) {
+    // The caller's own token, for this request alone. Never the key pool: a
+    // request that arrived without a token must fail rather than quietly spend
+    // a credential that belongs to the server.
+    const accessToken = currentAccessToken();
+
+    if (!accessToken) {
+      throw new Error('This request carried no access token (MCP_REMOTE_AUTHORIZATION is enabled).');
+    }
+
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+
+    return request(google.youtube({ version: 'v3', auth }));
+  }
+
   return pool.execute(request);
 }
