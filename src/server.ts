@@ -5,7 +5,9 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
     CallToolRequestSchema,
+    ErrorCode,
     ListToolsRequestSchema,
+    McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 import { VideoService } from './services/video.js';
 import { TranscriptService } from './services/transcript.js';
@@ -27,6 +29,58 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const VERSION: string = require('../package.json').version;
+
+/**
+ * Largest tool call this server accepts, in elements counted by
+ * `toolInputElementCount` (array elements and own object keys, recursively,
+ * root arguments object included). The widest legitimate call is
+ * `channels_getChannels` with the YouTube Data API's own 50-id ceiling for
+ * `channelIds`, the ~20 valid `parts` names, and its 3 argument keys: 73
+ * counted elements. 256 leaves more than three times that headroom while
+ * refusing a payload that would otherwise fan out into thousands of upstream
+ * calls from one request.
+ */
+const MAX_TOOL_INPUT_ELEMENTS = 256;
+
+/** Largest HTTP request body this server accepts, in bytes. */
+const MAX_REQUEST_BODY_BYTES = 1024 * 1024;
+
+/**
+ * Verbatim copy of `toolInputElementCount` from `@modelcontextprotocol/sdk`
+ * 1.32.2 (`dist/esm/server/mcp.js`), where it is module-private and so not
+ * reachable from a server built on the low-level `Server` class. Counts array
+ * elements and own object keys, recursively, and stops as soon as the running
+ * total exceeds `max`.
+ */
+function toolInputElementCount(value: unknown, max: number): number {
+    let count = 0;
+    const stack: unknown[] = [value];
+    while (stack.length > 0) {
+        const node = stack.pop();
+        if (node === null || typeof node !== 'object')
+            continue;
+        if (Array.isArray(node)) {
+            for (const child of node) {
+                if (++count > max)
+                    return count;
+                if (child !== null && typeof child === 'object')
+                    stack.push(child);
+            }
+        }
+        else {
+            for (const key in node) {
+                if (!Object.prototype.hasOwnProperty.call(node, key))
+                    continue;
+                if (++count > max)
+                    return count;
+                const child = (node as Record<string, unknown>)[key];
+                if (child !== null && typeof child === 'object')
+                    stack.push(child);
+            }
+        }
+    }
+    return count;
+}
 
 function safeSerialize(value: unknown, maxLength = 4000) {
     try {
@@ -400,6 +454,14 @@ function createMcpServer() {
         console.error(`[MCP] tool.start name=${name} args=${safeSerialize(args)}`);
 
         try {
+            const elementCount = toolInputElementCount(args, MAX_TOOL_INPUT_ELEMENTS);
+            if (elementCount > MAX_TOOL_INPUT_ELEMENTS) {
+                throw new McpError(
+                    ErrorCode.InvalidParams,
+                    `Invalid arguments for tool ${name}: arguments contain more than the maximum of ${MAX_TOOL_INPUT_ELEMENTS} elements`
+                );
+            }
+
             let result: unknown;
 
             switch (name) {
@@ -464,11 +526,26 @@ function createMcpServer() {
     return server;
 }
 
+class RequestBodyTooLargeError extends Error {
+    readonly statusCode = 413;
+
+    constructor() {
+        super(`Request body exceeds ${MAX_REQUEST_BODY_BYTES} bytes`);
+        this.name = 'RequestBodyTooLargeError';
+    }
+}
+
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
     const chunks: Buffer[] = [];
+    let received = 0;
 
     for await (const chunk of req) {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        received += buffer.length;
+        if (received > MAX_REQUEST_BODY_BYTES) {
+            throw new RequestBodyTooLargeError();
+        }
+        chunks.push(buffer);
     }
 
     if (chunks.length === 0) {
@@ -542,11 +619,14 @@ async function startHttpMcpServer() {
                 parsedBody = await readJsonBody(req);
                 console.error(`[HTTP] request.body method=${req.method} path=${url.pathname} body=${safeSerialize(parsedBody)}`);
             } catch (error) {
-                writeJson(res, 400, {
+                const tooLarge = error instanceof RequestBodyTooLargeError;
+                writeJson(res, tooLarge ? 413 : 400, {
                     jsonrpc: '2.0',
                     error: {
-                        code: -32700,
-                        message: `Invalid JSON body: ${error instanceof Error ? error.message : String(error)}`,
+                        code: tooLarge ? -32600 : -32700,
+                        message: tooLarge
+                            ? `Request body exceeds the maximum of ${MAX_REQUEST_BODY_BYTES} bytes`
+                            : `Invalid JSON body: ${error instanceof Error ? error.message : String(error)}`,
                     },
                     id: null,
                 });
